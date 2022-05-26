@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Room;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,7 +18,7 @@ class BookingController extends Controller
     public function index()
     {
         // Booking::withTrashed()->get()->dd();
-        $bookings=Booking::orderBy('created_at', 'desc')->paginate(5);
+        $bookings=Booking::with(['room.roomType', 'users:name'])->orderBy('created_at', 'desc')->paginate(5);
         
         return view('booking.index')
         ->with('bookings',$bookings);
@@ -31,7 +32,7 @@ class BookingController extends Controller
     public function create()
     {
         $rooms=Room::get()->pluck('number','id')->prepend('none');
-        $users=DB::table('users')->get()->pluck('name','id');
+        $users=User::get()->pluck('name','id')->prepend('none');
         return view('booking.create')
         ->with('rooms',$rooms)
         ->with('users',$users);
@@ -48,10 +49,11 @@ class BookingController extends Controller
         // dd($request);
         $booking=Booking::create($request->input());
         
-        DB::table('bookings_users')->insert([
-            'booking_id'=>$booking->id,
-            'user_id'=>$request->input('user_id')
-        ]);
+        $booking->users()->attach($request->input('user_id'));
+        // DB::table('bookings_users')->insert([
+        //     'booking_id'=>$booking->id,
+        //     'user_id'=>$request->input('user_id')
+        // ]);
         return redirect()->action([BookingController::class,'index']);
     }
 
@@ -100,12 +102,13 @@ class BookingController extends Controller
     {
         $booking->fill($request->input());
         $booking->save();
+        $booking->users()->sync($request->input('user_id'));
 
-        DB::table('bookings_users')
-        ->where('booking_id',$booking->id)
-        ->update([
-            'user_id'=>$request->input('user_id')
-        ]);
+        // DB::table('bookings_users')
+        // ->where('booking_id',$booking->id)
+        // ->update([
+        //     'user_id'=>$request->input('user_id')
+        // ]);
         
         return redirect()->action([BookingController::class,'index']);
     }
@@ -120,9 +123,14 @@ class BookingController extends Controller
     {
         // dd($booking);
         //deleting booking user record from bridge table
-        DB::table('bookings_users')->where('booking_id',$booking->id)->delete();
-        //deleting booking Record
+        
+        //using Laravel Eloquent Model in which we define Relationship
+        $booking->users()->detach();
+        // DB::table('bookings_users')->where('booking_id',$booking->id)->delete();
+        
+        //deleting booking Record        
         $booking->delete();
+
         // DB::table('bookings')->where('id',$booking->id)->delete();
         
         return redirect()->action([BookingController::class,'index']);
