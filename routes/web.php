@@ -25,5 +25,5 @@ Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::get('/test',function(){return "godfasdf";});
-Route::get('/rooms', \App\Http\Controllers\ShowRoomsController::class);
+Route::get('/rooms/{rooms?}', \App\Http\Controllers\ShowRoomsController::class);
 Route::resource('/bookings', \App\Http\Controllers\BookingController::class);

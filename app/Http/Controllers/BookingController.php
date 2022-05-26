@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,8 @@ class BookingController extends Controller
      */
     public function index()
     {
-        $bookings=DB::table('bookings')->get();
+        // Booking::withTrashed()->get()->dd();
+        $bookings=Booking::orderBy('created_at', 'desc')->paginate(5);
         
         return view('booking.index')
         ->with('bookings',$bookings);
@@ -28,7 +30,7 @@ class BookingController extends Controller
      */
     public function create()
     {
-        $rooms=DB::table('rooms')->get()->pluck('number','id')->prepend('none');
+        $rooms=Room::get()->pluck('number','id')->prepend('none');
         $users=DB::table('users')->get()->pluck('name','id');
         return view('booking.create')
         ->with('rooms',$rooms)
@@ -43,17 +45,11 @@ class BookingController extends Controller
      */
     public function store(Request $request)
     {
-        // dd($request->all());
-        $id=DB::table('bookings')->insertGetId([
-            'room_id'=>$request->input('room_id'),
-            'start'=>$request->input('start'),
-            'end'=>$request->input('end'),
-            'is_reservation'=>$request->input('is_reservation',false),
-            'is_paid'=>$request->input('is_paid',false),
-            'notes'=>$request->input('notes')
-        ]);
+        // dd($request);
+        $booking=Booking::create($request->input());
+        
         DB::table('bookings_users')->insert([
-            'booking_id'=>$id,
+            'booking_id'=>$booking->id,
             'user_id'=>$request->input('user_id')
         ]);
         return redirect()->action([BookingController::class,'index']);
@@ -67,7 +63,9 @@ class BookingController extends Controller
      */
     public function show(Booking $booking)
     {
-        //
+        // dd($booking);
+        return view('booking.show')
+        ->with('booking',$booking);
     }
 
     /**
@@ -78,7 +76,17 @@ class BookingController extends Controller
      */
     public function edit(Booking $booking)
     {
-        //
+        // dd($booking);
+        $users=DB::table('users')->get()->pluck('name','id');
+        $rooms=Room::get()->pluck('number','id')->prepend('none');
+        
+        $bookings_users=DB::table('bookings_users')->get()->where('booking_id',$booking->id)->first();
+        // dd($users,$rooms,$bookings_users);
+        return view('booking.edit')
+        ->with('users',$users)
+        ->with('rooms',$rooms)
+        ->with('bookings_users',$bookings_users)
+        ->with('booking', $booking);
     }
 
     /**
@@ -90,7 +98,16 @@ class BookingController extends Controller
      */
     public function update(Request $request, Booking $booking)
     {
-        //
+        $booking->fill($request->input());
+        $booking->save();
+
+        DB::table('bookings_users')
+        ->where('booking_id',$booking->id)
+        ->update([
+            'user_id'=>$request->input('user_id')
+        ]);
+        
+        return redirect()->action([BookingController::class,'index']);
     }
 
     /**
@@ -101,6 +118,13 @@ class BookingController extends Controller
      */
     public function destroy(Booking $booking)
     {
-        //
+        // dd($booking);
+        //deleting booking user record from bridge table
+        DB::table('bookings_users')->where('booking_id',$booking->id)->delete();
+        //deleting booking Record
+        $booking->delete();
+        // DB::table('bookings')->where('id',$booking->id)->delete();
+        
+        return redirect()->action([BookingController::class,'index']);
     }
 }

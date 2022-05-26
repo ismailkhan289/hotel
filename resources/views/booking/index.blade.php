@@ -44,10 +44,17 @@
                         title="Edit">
                       Edit
                     </a>
+                    <form action="{{action('App\Http\Controllers\BookingController@destroy',
+                    ['booking'=>$booking->id])}}" method="POST">
+                        @method('DELETE')
+                        @csrf
+                        <button type="submit" class="btn btn-link" value="DELETE" title="Delete">Delete</button>
+                    </form>
                 </td>
             </tr>
         @empty
         @endforelse
     </tbody>
 </table>
+{{$bookings->links('pagination::bootstrap-4')}}
 @endsection
